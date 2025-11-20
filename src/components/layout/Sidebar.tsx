@@ -1,11 +1,15 @@
 import { useState } from 'react'
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { 
   Home, 
   Trash2, 
   Calendar,
   List,
-  Circle
+  Circle,
+  Folder,
+  ChevronDown,
+  ChevronRight
 } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { useUIStore } from '@/stores/ui-store'
@@ -20,24 +24,74 @@ export const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
   const navigate = useNavigate()
   const location = useLocation()
   const { viewMode, setViewMode } = useUIStore()
-  const { discs, currentDisc, deleteDisc } = useDiscStore()
+  const { discs, folders, currentDisc, deleteDisc } = useDiscStore()
   const [deletingId, setDeletingId] = useState<string | null>(null)
+  const [confirmDialog, setConfirmDialog] = useState<{ open: boolean; discId: string | null }>({ open: false, discId: null })
+  const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set(['root']))
 
-  const handleDeleteDisc = async (id: string) => {
-    if (window.confirm('Are you sure you want to delete this disc?')) {
-      setDeletingId(id)
-      try {
-        await deleteDisc(id)
-        if (currentDisc?.id === id) {
-          navigate('/disc-list')
-        }
-      } catch (error) {
-        console.error('Delete failed:', error)
-      } finally {
-        setDeletingId(null)
+  const handleDeleteDisc = (id: string) => {
+    setConfirmDialog({ open: true, discId: id })
+  }
+
+  const handleConfirmDelete = async () => {
+    if (!confirmDialog.discId) return
+    setDeletingId(confirmDialog.discId)
+    setConfirmDialog({ open: false, discId: null })
+    try {
+      await deleteDisc(confirmDialog.discId)
+      if (currentDisc?.id === confirmDialog.discId) {
+        navigate('/disc-list')
       }
+    } catch (error) {
+      console.error('Delete failed:', error)
+    } finally {
+      setDeletingId(null)
     }
   }
+
+  const toggleFolder = (folderId: string) => {
+    const newExpanded = new Set(expandedFolders)
+    if (newExpanded.has(folderId)) {
+      newExpanded.delete(folderId)
+    } else {
+      newExpanded.add(folderId)
+    }
+    setExpandedFolders(newExpanded)
+  }
+
+  const renderDiscItem = (disc: any) => (
+    <div
+      key={disc.id}
+      className={`
+        group flex items-center justify-between p-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700
+        ${location.pathname === `/disc/${disc.id}` ? 'bg-primary-50 dark:bg-primary-900/20' : ''}
+      `}
+    >
+      <button
+        onClick={() => navigate(`/disc/${disc.id}`)}
+        className="flex-1 text-left truncate"
+      >
+        <div className="font-medium text-gray-900 dark:text-white truncate">
+          {disc.name}
+        </div>
+        <div className="text-sm text-gray-500 dark:text-gray-400">
+          {disc.rings.length} rings
+        </div>
+      </button>
+
+      <div className="flex items-center space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => handleDeleteDisc(disc.id)}
+          disabled={deletingId === disc.id}
+          className="p-1 text-red-600 hover:text-red-700"
+        >
+          <Trash2 className="h-3 w-3" />
+        </Button>
+      </div>
+    </div>
+  )
 
 
   const viewModes = [
@@ -89,39 +143,60 @@ export const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
               All Discs
             </Button>
 
-            {discs.map((disc) => (
-              <div
-                key={disc.id}
-                className={`
-                  group flex items-center justify-between p-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700
-                  ${location.pathname === `/disc/${disc.id}` ? 'bg-primary-50 dark:bg-primary-900/20' : ''}
-                `}
-              >
+            {/* Root discs */}
+            {discs.filter(d => !d.folderId).length > 0 && (
+              <div className="mt-4">
                 <button
-                  onClick={() => navigate(`/disc/${disc.id}`)}
-                  className="flex-1 text-left truncate"
+                  onClick={() => toggleFolder('root')}
+                  className="flex items-center w-full p-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md"
                 >
-                  <div className="font-medium text-gray-900 dark:text-white truncate">
-                    {disc.name}
-                  </div>
-                  <div className="text-sm text-gray-500 dark:text-gray-400">
-                    {disc.rings.length} rings
-                  </div>
+                  {expandedFolders.has('root') ? (
+                    <ChevronDown className="h-4 w-4 mr-2" />
+                  ) : (
+                    <ChevronRight className="h-4 w-4 mr-2" />
+                  )}
+                  <Folder className="h-4 w-4 mr-2" />
+                  Root ({discs.filter(d => !d.folderId).length})
                 </button>
-
-                <div className="flex items-center space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => handleDeleteDisc(disc.id)}
-                    disabled={deletingId === disc.id}
-                    className="p-1 text-red-600 hover:text-red-700"
-                  >
-                    <Trash2 className="h-3 w-3" />
-                  </Button>
-                </div>
+                {expandedFolders.has('root') && (
+                  <div className="ml-6 mt-1 space-y-1">
+                    {discs.filter(d => !d.folderId).map(renderDiscItem)}
+                  </div>
+                )}
               </div>
-            ))}
+            )}
+
+            {/* Folders */}
+            {folders.map((folder) => {
+              const folderDiscs = discs.filter(d => d.folderId === folder.id)
+              return (
+                <div key={folder.id} className="mt-2">
+                  <button
+                    onClick={() => toggleFolder(folder.id)}
+                    className="flex items-center w-full p-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md"
+                  >
+                    {expandedFolders.has(folder.id) ? (
+                      <ChevronDown className="h-4 w-4 mr-2" />
+                    ) : (
+                      <ChevronRight className="h-4 w-4 mr-2" />
+                    )}
+                    <Folder className="h-4 w-4 mr-2" />
+                    {folder.name} ({folderDiscs.length})
+                  </button>
+                  {expandedFolders.has(folder.id) && (
+                    <div className="ml-6 mt-1 space-y-1">
+                      {folderDiscs.length === 0 ? (
+                        <div className="p-2 text-sm text-gray-500 dark:text-gray-400">
+                          No discs
+                        </div>
+                      ) : (
+                        folderDiscs.map(renderDiscItem)
+                      )}
+                    </div>
+                  )}
+                </div>
+              )
+            })}
           </nav>
 
           {/* View Mode Toggle */}
@@ -164,6 +239,17 @@ export const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
           </div>
         </div>
       </div>
+      {/* ConfirmDialog for disc deletion */}
+      <ConfirmDialog
+        isOpen={confirmDialog.open}
+        title="Delete Disc"
+        message="Are you sure you want to delete this disc? This action cannot be undone and all its data will be lost."
+        confirmLabel="Delete"
+        cancelLabel="Cancel"
+        isDangerous
+        onConfirm={handleConfirmDelete}
+        onCancel={() => setConfirmDialog({ open: false, discId: null })}
+      />
     </>
   )
 }

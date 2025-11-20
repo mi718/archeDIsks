@@ -1,7 +1,6 @@
 import { useMemo, useState } from 'react'
 import type { Disc, ActivityRenderData, RingRenderData } from '@/types'
 import { dateToAngle, polarToCartesian } from '@/lib/polar-utils';
-import { ActivityDrawer } from './ActivityDrawer';
 import { useDiscStore } from '@/stores/disc-store';
 import { useUIStore } from '@/stores/ui-store';
 
@@ -12,7 +11,7 @@ export const CircularDisc = ({
   disc
 }: CircularDiscProps) => {
   const { saveDisc } = useDiscStore();
-  const { isActivityDrawerOpen, selectedActivityId, openActivityDrawer, closeActivityDrawer, filters } = useUIStore();
+  const { isActivityDrawerOpen, selectedActivityId, openActivityDrawer, filters } = useUIStore();
   const [isEditDiscOpen, setIsEditDiscOpen] = useState(false);
   const [editDiscName, setEditDiscName] = useState(disc.name);
 
@@ -259,16 +258,7 @@ export const CircularDisc = ({
 
 
   return (
-    <>
-      {/* Activity Drawer */}
-      <ActivityDrawer
-        isOpen={isActivityDrawerOpen}
-        onClose={closeActivityDrawer}
-        activity={editingActivity}
-        disc={disc}
-      />
-
-      <div className="w-full h-full flex items-center justify-center relative" style={{ width: 800, height: 800 }}>
+    <div className="w-full h-full flex items-center justify-center relative" style={{ width: 800, height: 800 }}>
         <svg
           width="800"
           height="800"
@@ -278,7 +268,10 @@ export const CircularDisc = ({
         >
           <g transform="translate(400,400)">
             {/* Outer time ring with month divisions */}
-            {timeTicks.map(({ date, angle }, index) => (
+            {timeTicks.map(({ date, angle }, index) => {
+              const today = new Date();
+              const isCurrentMonth = date.getFullYear() === today.getFullYear() && date.getMonth() === today.getMonth();
+              return (
               <g key={index}>
                 {/* Line from center to month */}
                 <line
@@ -286,10 +279,10 @@ export const CircularDisc = ({
                   y1={0}
                   x2={polarToCartesian(angle, maxRadius).x}
                   y2={polarToCartesian(angle, maxRadius).y}
-                  stroke="#9ca3af"
-                  strokeWidth="1"
+                  stroke={isCurrentMonth ? '#ef4444' : '#9ca3af'}
+                  strokeWidth={isCurrentMonth ? '2' : '1'}
                   strokeDasharray="2,2"
-                  className="dark:stroke-gray-500"
+                  className={isCurrentMonth ? '' : 'dark:stroke-gray-500'}
                 />
                 {/* Month tick mark */}
                 <line
@@ -297,19 +290,20 @@ export const CircularDisc = ({
                   y1={polarToCartesian(angle, maxRadius + 30 - 10).y}
                   x2={polarToCartesian(angle, maxRadius + 30).x}
                   y2={polarToCartesian(angle, maxRadius + 30).y}
-                  stroke="#9ca3af"
-                  strokeWidth="2"
+                  stroke={isCurrentMonth ? '#ef4444' : '#9ca3af'}
+                  strokeWidth={isCurrentMonth ? '3' : '2'}
                 />
                 <text
                   x={polarToCartesian(angle, maxRadius + 50).x}
                   y={polarToCartesian(angle, maxRadius + 50).y}
                   textAnchor="middle"
-                  className="text-xs font-medium fill-gray-600 dark:fill-gray-400"
+                  className={isCurrentMonth ? 'text-xs font-bold fill-red-600' : 'text-xs font-medium fill-gray-600 dark:fill-gray-400'}
                 >
                   {date.toLocaleString('default', { month: 'short' })}
                 </text>
               </g>
-            ))}
+              );
+            })}
 
             {/* Ring backgrounds with proper styling */}
             {[...ringData].reverse().map((ring) => {
@@ -418,8 +412,7 @@ export const CircularDisc = ({
                       />
                       <text
                         fontSize="10"
-                        fill="#374151"
-                        fontWeight="bold"
+                        className="font-bold text-gray-700 dark:fill-white"
                         textAnchor="middle"
                         dominantBaseline="hanging"
                         style={{ whiteSpace: 'nowrap', pointerEvents: 'none' }}
@@ -610,17 +603,15 @@ export const CircularDisc = ({
                         setIsEditDiscOpen(false);
                       }
                     }}
-                    style={{ marginTop: 8, padding: '6px 18px', borderRadius: 6, background: '#1f2937', color: '#fff', border: 'none', cursor: 'pointer' }}
+                    style={{ marginTop: 8, padding: '6px 18px', borderRadius: 6, background: '#2563eb', color: '#fff', border: 'none', cursor: 'pointer' }}
                   >
                     Save
                   </button>
-                  <button onClick={() => setIsEditDiscOpen(false)} style={{ marginTop: 8, padding: '6px 18px', borderRadius: 6, background: '#eee', color: '#222', border: 'none', cursor: 'pointer' }}>Cancel</button>
                 </div>
               </foreignObject>
             )}
           </g>
         </svg>
       </div>
-    </>
   )
 }

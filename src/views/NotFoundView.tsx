@@ -27,7 +27,7 @@ export const NotFoundView = () => {
             <span>Go Back</span>
           </Button>
           <Button
-            onClick={() => navigate('/')}
+            onClick={() => navigate('/disc-list')}
             className="flex items-center space-x-2"
           >
             <Home className="h-4 w-4" />

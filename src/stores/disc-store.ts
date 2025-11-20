@@ -1,9 +1,12 @@
 import { create } from 'zustand'
 import { subscribeWithSelector } from 'zustand/middleware'
-import type { Disc, DiscState, HistoryState } from '@/types'
+import type { Disc, DiscState, HistoryState, Folder } from '@/types'
 import { LocalDiscRepository } from '@/repositories/local-storage'
 
 interface DiscStore extends DiscState, HistoryState {
+  // Folder state
+  folders: Folder[]
+  
   // Actions
   loadDiscs: () => Promise<void>
   loadDisc: (id: string) => Promise<void>
@@ -11,6 +14,9 @@ interface DiscStore extends DiscState, HistoryState {
   deleteDisc: (id: string) => Promise<void>
   createDisc: (disc: Omit<Disc, 'id' | 'version' | 'createdAt' | 'updatedAt'>) => Promise<Disc>
   duplicateDisc: (id: string) => Promise<Disc>
+  moveDiscToFolder: (discId: string, folderId: string | null) => Promise<void>
+  createFolder: (name: string) => Promise<Folder>
+  deleteFolder: (folderId: string) => Promise<void>
   
   // History actions
   undo: () => void
@@ -27,12 +33,33 @@ interface DiscStore extends DiscState, HistoryState {
 }
 
 const repository = new LocalDiscRepository()
+const FOLDERS_STORAGE_KEY = 'archedisks_folders'
+
+const loadFolders = (): any[] => {
+  try {
+    const stored = localStorage.getItem(FOLDERS_STORAGE_KEY)
+    if (!stored) return []
+    return JSON.parse(stored)
+  } catch (error) {
+    console.error('Error loading folders:', error)
+    return []
+  }
+}
+
+const saveFolders = (folders: any[]) => {
+  try {
+    localStorage.setItem(FOLDERS_STORAGE_KEY, JSON.stringify(folders))
+  } catch (error) {
+    console.error('Error saving folders:', error)
+  }
+}
 
 export const useDiscStore = create<DiscStore>()(
   subscribeWithSelector((set, get) => ({
     // Initial state
     currentDisc: undefined,
     discs: [],
+    folders: [],
     isLoading: false,
     error: undefined,
     past: [],
@@ -45,7 +72,8 @@ export const useDiscStore = create<DiscStore>()(
       set({ isLoading: true, error: undefined })
       try {
         const discs = await repository.getAll()
-        set({ discs, isLoading: false })
+        const folders = loadFolders()
+        set({ discs, folders, isLoading: false })
       } catch (error) {
         set({ 
           error: error instanceof Error ? error.message : 'Failed to load discs',
@@ -281,6 +309,69 @@ export const useDiscStore = create<DiscStore>()(
 
     clearError: () => {
       set({ error: undefined })
+    },
+
+    // Folder actions
+    createFolder: async (name: string) => {
+      const newFolder: Folder = {
+        id: `folder_${Date.now()}`,
+        name,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      }
+      
+      const { folders } = get()
+      const updatedFolders = [...folders, newFolder]
+      saveFolders(updatedFolders)
+      set({ folders: updatedFolders })
+      
+      return newFolder
+    },
+
+    deleteFolder: async (folderId: string) => {
+      const { folders, discs } = get()
+      
+      // Move all discs in this folder to root
+      const updatedDiscs = discs.map(disc => 
+        disc.folderId === folderId 
+          ? { ...disc, folderId: undefined, updatedAt: new Date().toISOString() }
+          : disc
+      )
+      
+      const updatedFolders = folders.filter(f => f.id !== folderId)
+      saveFolders(updatedFolders)
+      
+      set({ 
+        folders: updatedFolders,
+        discs: updatedDiscs
+      })
+      
+      // Save all updated discs
+      for (const disc of updatedDiscs.filter(d => d.folderId !== discs.find(orig => orig.id === d.id)?.folderId)) {
+        await repository.save(disc)
+      }
+    },
+
+    moveDiscToFolder: async (discId: string, folderId: string | null) => {
+      const { discs } = get()
+      const disc = discs.find(d => d.id === discId)
+      
+      if (!disc) return
+      
+      const updatedDisc = {
+        ...disc,
+        folderId: folderId || undefined,
+        updatedAt: new Date().toISOString()
+      }
+      
+      await repository.save(updatedDisc)
+      
+      const updatedDiscs = discs.map(d => d.id === discId ? updatedDisc : d)
+      set({ discs: updatedDiscs })
+      
+      if (get().currentDisc?.id === discId) {
+        set({ currentDisc: updatedDisc })
+      }
     }
   }))
 )

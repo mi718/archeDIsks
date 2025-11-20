@@ -36,7 +36,7 @@ function AppContent() {
   }, [isLoggedIn, navigate]);
 
   return (
-    <div className="flex h-screen bg-gray-50 dark:bg-gray-900">
+    <div className="flex h-screen bg-gray-50 dark:bg-gray-900 overflow-hidden">
       {!isLoginPage && (
         <Sidebar 
           isOpen={isSidebarOpen} 
@@ -45,7 +45,7 @@ function AppContent() {
       )}
 
       <div
-        className={`flex-1 flex flex-col overflow-hidden transition-all duration-300 ${isSidebarOpen && !isLoginPage ? 'ml-64' : ''}`}
+        className={`flex-1 flex flex-col overflow-hidden transition-all duration-300 ${!isLoginPage && isSidebarOpen ? 'lg:ml-64' : ''}`}
       >
         {!isLoginPage && (
           <AppBar 
@@ -55,7 +55,7 @@ function AppContent() {
         )}
 
         {/* Page content */}
-        <main className="flex-1 overflow-auto">
+        <main className="flex-1 overflow-y-scroll overflow-x-hidden">
           <Routes>
             <Route path="/" element={<LoginPage />} />
             <Route path="/disc-list" element={<DiscListView />} />

@@ -51,6 +51,21 @@ export interface DiscTheme {
   bg: string
 }
 
+export interface ColorPalette {
+  id: string
+  name: string
+  baseColor: string
+  colors: string[] // Array of color variations (lighter to darker)
+  description?: string
+}
+
+export interface Folder {
+  id: string
+  name: string
+  createdAt: string
+  updatedAt: string
+}
+
 export interface Disc {
   id: string
   name: string
@@ -60,6 +75,8 @@ export interface Disc {
   rings: Ring[]
   labels: Label[]
   theme?: DiscTheme
+  colorPaletteId?: string // Reference to the chosen color palette
+  folderId?: string // Optional reference to parent folder
   version: number
   createdAt: string
   updatedAt: string
@@ -90,6 +107,7 @@ export interface UIState {
 export interface DiscState {
   currentDisc?: Disc
   discs: Disc[]
+  folders: Folder[]
   isLoading: boolean
   error?: string
 }

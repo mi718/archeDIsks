@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { useForm } from 'react-hook-form'
+import { useForm, Controller } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Drawer } from '@/components/ui/Drawer'
 import { Button } from '@/components/ui/Button'
@@ -9,6 +9,8 @@ import { useDiscStore } from '@/stores/disc-store'
 import { useUIStore } from '@/stores/ui-store'
 import type { Ring, Disc, RingFormData } from '@/types'
 import { ringFormSchema } from '@/lib/validation'
+import { CirclePicker } from 'react-color'
+import { getPaletteColors } from '@/lib/color-palettes'
 
 interface RingDrawerProps {
   isOpen: boolean
@@ -31,6 +33,7 @@ export const RingDrawer = ({ isOpen, onClose, disc, selectedRingId }: RingDrawer
     register,
     handleSubmit,
     reset,
+    control,
     formState: { errors }
   } = useForm<RingFormData>({
     resolver: zodResolver(ringFormSchema),
@@ -185,20 +188,37 @@ export const RingDrawer = ({ isOpen, onClose, disc, selectedRingId }: RingDrawer
           error={errors.type?.message}
         />
 
-        <div className="grid grid-cols-2 gap-4">
-          <Input
-            label="Color"
-            type="color"
-            {...register('color')}
-            error={errors.color?.message}
-          />
-          <Select
-            label="Time Unit"
-            options={timeUnitOptions}
-            {...register('timeUnit')}
-            error={errors.timeUnit?.message}
-          />
-        </div>
+        <Controller
+          name="color"
+          control={control}
+          render={({ field }) => {
+            // Get available colors from the disc's color palette
+            const availableColors = disc.colorPaletteId 
+              ? getPaletteColors(disc.colorPaletteId)
+              : ['#3B82F6'] // Fallback if no palette
+            
+            return (
+              <div className="space-y-2">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                  Color
+                </label>
+                <CirclePicker
+                  color={field.value}
+                  colors={availableColors}
+                  onChangeComplete={(color) => field.onChange(color.hex)}
+                  width="100%"
+                />
+              </div>
+            )
+          }}
+        />
+
+        <Select
+          label="Time Unit"
+          options={timeUnitOptions}
+          {...register('timeUnit')}
+          error={errors.timeUnit?.message}
+        />
 
         <div className="flex justify-between pt-4 border-t border-gray-200 dark:border-gray-700">
           {editingRing && (

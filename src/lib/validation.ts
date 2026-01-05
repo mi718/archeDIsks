@@ -70,8 +70,8 @@ export const discSchema = z.object({
 export const activityFormSchema = z.object({
   title: z.string().min(1, 'Title is required'),
   description: z.string().optional(),
-  start: z.string().regex(/^\d{4}-\d{2}-\d{2}(T.*)?$/, 'Invalid start date'),
-  end: z.string().regex(/^\d{4}-\d{2}-\d{2}(T.*)?$/, 'Invalid end date').optional(),
+  start: z.string().regex(/^\d{2}-\d{2}-\d{4}$/, 'Invalid start date'),
+  end: z.string().regex(/^\d{2}-\d{2}-\d{4}$/, 'Invalid end date').optional(),
   color: z.string().regex(/^#[0-9A-Fa-f]{6}$/, 'Invalid color format').optional(),
   labelIds: z.array(z.string()).optional(),
   recurrence: recurrenceSchema.optional(),

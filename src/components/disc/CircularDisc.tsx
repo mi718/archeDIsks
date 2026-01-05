@@ -31,8 +31,8 @@ export const CircularDisc = ({
     : null;
 
   const { centerRadius, maxRadius, ringData, timeTicks } = useMemo(() => {
-    const centerRadius = 60
-    const maxRadius = 280
+    const centerRadius = 80
+    const maxRadius = 320
     const ringPadding = 25
 
     // Separate normal and thin rings
@@ -447,6 +447,12 @@ export const CircularDisc = ({
                     const arcLength = Math.abs(arc.endAngle - arc.startAngle) * middleRadius;
                     const ringThickness = arc.outerRadius - arc.innerRadius;
 
+                    // Calculate activity duration in days
+                    const startDate = new Date(activity.start);
+                    const endDate = activity.end ? new Date(activity.end) : startDate;
+                    const durationMs = endDate.getTime() - startDate.getTime();
+                    const durationDays = Math.ceil(durationMs / (1000 * 60 * 60 * 24));
+
                     // Calculate the distance from the center of the SVG
                     const distanceFromCenter = Math.sqrt(
                       Math.pow(polarToCartesian(middleAngle, middleRadius).x, 2) + 
@@ -461,7 +467,7 @@ export const CircularDisc = ({
 
                     // Determine text display mode based on available space
                     const showText = arcLength > 15; // Minimum space needed for any text (reduced from 20)
-                    const useVerticalText = arcLength <= 30 && ringThickness >= 20; // Use vertical text when arc is small but ring is thick enough
+                    const useVerticalText = (arcLength <= 30 && ringThickness >= 20) || durationDays < 16; // Use vertical text when arc is small but ring is thick enough, or duration is less than 16 days
 
                     // Adjust title length based on available space and distance to edge
                     const maxTitleLength = Math.floor(20 * edgeFactor);

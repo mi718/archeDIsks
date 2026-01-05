@@ -11,24 +11,10 @@ export const CircularDisc = ({
   disc
 }: CircularDiscProps) => {
   const { saveDisc } = useDiscStore();
-  const { isActivityDrawerOpen, selectedActivityId, openActivityDrawer, filters } = useUIStore();
+  const { selectedActivityId, openActivityDrawer, filters } = useUIStore();
   const [isEditDiscOpen, setIsEditDiscOpen] = useState(false);
   const [editDiscName, setEditDiscName] = useState(disc.name);
 
-
-  // Helper to robustly find activity by id
-  const findActivityById = (id: string | undefined | null) => {
-    if (!id) return null;
-    for (const ring of disc.rings) {
-      const found = ring.activities?.find(a => String(a.id) === String(id));
-      if (found) return found;
-    }
-    return null;
-  };
-
-  const editingActivity = isActivityDrawerOpen && selectedActivityId
-    ? findActivityById(selectedActivityId)
-    : null;
 
   const { centerRadius, maxRadius, ringData, timeTicks } = useMemo(() => {
     const centerRadius = 80

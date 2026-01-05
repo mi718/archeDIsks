@@ -224,7 +224,7 @@ export const RingDrawer = ({ isOpen, onClose, disc, selectedRingId }: RingDrawer
           {editingRing && (
             <Button
               type="button"
-              variant="danger"
+              variant="secondary"
               onClick={handleDelete}
               disabled={isSaving}
             >

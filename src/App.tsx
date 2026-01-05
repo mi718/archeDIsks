@@ -71,7 +71,7 @@ function AppContent() {
 
 function App() {
   return (
-    <Router>
+    <Router basename="/archeDIsks">
       <AppContent />
     </Router>
   )

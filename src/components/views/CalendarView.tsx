@@ -9,7 +9,12 @@ interface CalendarViewProps {
 
 export const CalendarView = ({ disc }: CalendarViewProps) => {
   const { filters, openActivityDrawer } = useUIStore()
-  const [currentMonth, setCurrentMonth] = useState(new Date())
+  const [currentMonth, setCurrentMonth] = useState(() => new Date(disc.start))
+
+  // Update currentMonth if disc.start changes
+  useMemo(() => {
+    setCurrentMonth(new Date(disc.start));
+  }, [disc.start]);
 
   const handlePreviousMonth = () => {
     setCurrentMonth(prevMonth => subMonths(prevMonth, 1))

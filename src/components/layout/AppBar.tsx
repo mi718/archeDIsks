@@ -23,13 +23,18 @@ interface AppBarProps {
 export const AppBar = ({ onMenuToggle, isMenuOpen }: AppBarProps) => {
   const navigate = useNavigate()
   const { theme, toggleTheme, setTextSearch, openFilterDrawer } = useUIStore()
-  const { exportDiscs, importDiscs } = useDiscStore()
+  const { exportDiscs, importDiscs, currentDisc } = useDiscStore()
   const [isImporting, setIsImporting] = useState(false)
+
+  const getExportFileName = (extension: string) => {
+    const baseName = currentDisc ? currentDisc.name : 'orbitaldisk-export'
+    return `${baseName}_orbitalDisk.${extension}`
+  }
 
   const handleExportJSON = async () => {
     try {
       const data = await exportDiscs()
-      exportToJSON(JSON.parse(data), 'archedisks-export.json')
+      exportToJSON(JSON.parse(data), getExportFileName('json'))
     } catch (error) {
       console.error('Export failed:', error)
     }
@@ -39,7 +44,7 @@ export const AppBar = ({ onMenuToggle, isMenuOpen }: AppBarProps) => {
     try {
       const discElement = document.querySelector('[data-disc-view]') as HTMLElement
       if (discElement) {
-        await exportToPNG(discElement, 'disc.png')
+        await exportToPNG(discElement, getExportFileName('png'))
       }
     } catch (error) {
       console.error('PNG export failed:', error)
@@ -50,7 +55,7 @@ export const AppBar = ({ onMenuToggle, isMenuOpen }: AppBarProps) => {
     try {
       const discElement = document.querySelector('[data-disc-view]') as HTMLElement
       if (discElement) {
-        await exportToPDF(discElement, 'disc.pdf')
+        await exportToPDF(discElement, getExportFileName('pdf'))
       }
     } catch (error) {
       console.error('PDF export failed:', error)
@@ -83,22 +88,20 @@ export const AppBar = ({ onMenuToggle, isMenuOpen }: AppBarProps) => {
     <header className="bg-white border-b border-gray-200 dark:bg-gray-800 dark:border-gray-700">
       <div className="flex items-center justify-between px-4 py-3">
         <div className="flex items-center space-x-4">
-          {!isMenuOpen && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={onMenuToggle}
-              className="p-2"
-            >
-              <Menu className="h-5 w-5" />
-            </Button>
-          )}
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onMenuToggle}
+            className={`p-2 ${isMenuOpen ? 'hidden' : 'flex'} lg:${isMenuOpen ? 'hidden' : 'flex'}`}
+          >
+            <Menu className="h-5 w-5" />
+          </Button>
           <h1 className="text-xl font-semibold text-gray-900 dark:text-white">
-            ArcheDisks
+            OrbitalDisk
           </h1>
         </div>
 
-        <div className="flex items-center space-x-4">
+        <div className="hidden lg:flex items-center space-x-4">
           {/* Search */}
           <div className="relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />

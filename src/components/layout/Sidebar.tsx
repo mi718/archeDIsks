@@ -9,11 +9,22 @@ import {
   Circle,
   Folder,
   ChevronDown,
-  ChevronRight
+  ChevronRight,
+  Search,
+  Filter,
+  Download,
+  Upload,
+  Moon,
+  Sun,
+  User,
+  LogOut
 } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
+import { Input } from '@/components/ui/Input'
 import { useUIStore } from '@/stores/ui-store'
 import { useDiscStore } from '@/stores/disc-store'
+import { useAuthStore } from '@/stores/auth-store'
+import { exportToPNG, exportToPDF, exportToJSON } from '@/lib/export-utils'
 
 interface SidebarProps {
   isOpen: boolean
@@ -23,11 +34,72 @@ interface SidebarProps {
 export const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
   const navigate = useNavigate()
   const location = useLocation()
-  const { viewMode, setViewMode } = useUIStore()
-  const { discs, folders, currentDisc, deleteDisc } = useDiscStore()
+  const { theme, toggleTheme, setTextSearch, openFilterDrawer, viewMode, setViewMode } = useUIStore()
+  const { exportDiscs, importDiscs, discs, folders, currentDisc, deleteDisc } = useDiscStore()
+  const { logout } = useAuthStore()
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [confirmDialog, setConfirmDialog] = useState<{ open: boolean; discId: string | null }>({ open: false, discId: null })
   const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set(['root']))
+  const [isImporting, setIsImporting] = useState(false)
+
+  const getExportFileName = (extension: string) => {
+    const baseName = currentDisc ? currentDisc.name : 'orbitaldisk-export'
+    return `${baseName}_orbitalDisk.${extension}`
+  }
+
+  const handleExportJSON = async () => {
+    try {
+      const data = await exportDiscs()
+      exportToJSON(JSON.parse(data), getExportFileName('json'))
+    } catch (error) {
+      console.error('Export failed:', error)
+    }
+  }
+
+  const handleExportPNG = async () => {
+    try {
+      const discElement = document.querySelector('[data-disc-view]') as HTMLElement
+      if (discElement) {
+        await exportToPNG(discElement, getExportFileName('png'))
+      }
+    } catch (error) {
+      console.error('PNG export failed:', error)
+    }
+  }
+
+  const handleExportPDF = async () => {
+    try {
+      const discElement = document.querySelector('[data-disc-view]') as HTMLElement
+      if (discElement) {
+        await exportToPDF(discElement, getExportFileName('pdf'))
+      }
+    } catch (error) {
+      console.error('PDF export failed:', error)
+    }
+  }
+
+  const handleImport = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (!file) return
+
+    setIsImporting(true)
+    try {
+      const text = await file.text()
+      await importDiscs(text)
+      // Clear the input so the same file can be imported again
+      event.target.value = ''
+      navigate('/disc-list')
+      onClose()
+    } catch (error) {
+      console.error('Import failed:', error)
+      const errorMessage = error instanceof Error ? error.message : 'Failed to import discs'
+      alert(`Import Error: ${errorMessage}`)
+      // Clear the input
+      event.target.value = ''
+    } finally {
+      setIsImporting(false)
+    }
+  }
 
   const handleDeleteDisc = (id: string) => {
     setConfirmDialog({ open: true, discId: id })
@@ -100,6 +172,11 @@ export const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
     { id: 'list', label: 'List View', icon: List },
   ] as const
 
+  const handleLogout = () => {
+    logout();
+    navigate('/');
+  };
+
   return (
     <>
       {/* Mobile overlay */}
@@ -134,6 +211,105 @@ export const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
 
           {/* Navigation */}
           <nav className="flex-1 overflow-y-auto p-4 space-y-2">
+            {/* Mobile-only header components */}
+            <div className="lg:hidden space-y-4 mb-6 pb-6 border-b border-gray-200 dark:border-gray-700">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                <Input
+                  placeholder="Search..."
+                  className="pl-10 w-full"
+                  onChange={(e) => setTextSearch(e.target.value)}
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    openFilterDrawer()
+                    onClose()
+                  }}
+                  className="flex items-center justify-center space-x-2"
+                >
+                  <Filter className="h-4 w-4" />
+                  <span>Filter</span>
+                </Button>
+
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={toggleTheme}
+                  className="flex items-center justify-center space-x-2"
+                >
+                  {theme === 'light' ? (
+                    <>
+                      <Moon className="h-4 w-4" />
+                      <span>Dark</span>
+                    </>
+                  ) : (
+                    <>
+                      <Sun className="h-4 w-4" />
+                      <span>Light</span>
+                    </>
+                  )}
+                </Button>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div className="relative group">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="w-full flex items-center justify-center space-x-2"
+                  >
+                    <Download className="h-4 w-4" />
+                    <span>Export</span>
+                  </Button>
+                  <div className="absolute left-0 mt-2 w-full bg-white dark:bg-gray-800 rounded-md shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50 border border-gray-200 dark:border-gray-700">
+                    <div className="py-1">
+                      <button
+                        onClick={handleExportJSON}
+                        className="block w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+                      >
+                        JSON
+                      </button>
+                      <button
+                        onClick={handleExportPNG}
+                        className="block w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+                      >
+                        PNG
+                      </button>
+                      <button
+                        onClick={handleExportPDF}
+                        className="block w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+                      >
+                        PDF
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="relative">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="w-full flex items-center justify-center space-x-2"
+                    disabled={isImporting}
+                  >
+                    <Upload className="h-4 w-4" />
+                    <span>Import</span>
+                  </Button>
+                  <input
+                    type="file"
+                    accept=".json"
+                    onChange={handleImport}
+                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                  />
+                </div>
+              </div>
+            </div>
+
             <Button
               variant={location.pathname === '/disc-list' ? 'primary' : 'ghost'}
               onClick={() => navigate('/disc-list')}
@@ -225,15 +401,21 @@ export const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
           )}
 
           {/* Logout Button */}
-          <div className="border-t border-gray-200 p-4 dark:border-gray-700">
+          <div className="border-t border-gray-200 p-4 dark:border-gray-700 space-y-2">
             <Button
               variant="ghost"
-              onClick={() => {
-                localStorage.removeItem('isLoggedIn');
-                navigate('/');
-              }}
+              onClick={() => navigate('/profile')}
+              className="w-full justify-start text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white"
+            >
+              <User className="h-4 w-4 mr-2" />
+              Profile
+            </Button>
+            <Button
+              variant="ghost"
+              onClick={handleLogout}
               className="w-full justify-start text-red-600 hover:text-red-700"
             >
+              <LogOut className="h-4 w-4 mr-2" />
               Logout
             </Button>
           </div>

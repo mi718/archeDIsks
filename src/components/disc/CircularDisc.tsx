@@ -19,7 +19,7 @@ export const CircularDisc = ({
   const { centerRadius, maxRadius, ringData, timeTicks } = useMemo(() => {
     const centerRadius = 80
     const maxRadius = 320
-    const ringPadding = 25
+    const ringPadding = 0
 
     // Separate normal and thin rings
     // Log rings with invalid types
@@ -59,6 +59,7 @@ export const CircularDisc = ({
 
     const ringData: RingRenderData[] = sortedRings.map((ring) => {
       const isThin = ring.type === 'thin';
+      const timeUnit = ring.timeUnit || disc.defaultTimeUnit;
 
       // Calculate position based on ring type
       let innerRadius, outerRadius;
@@ -88,6 +89,32 @@ export const CircularDisc = ({
         } else {
           innerRadius = centerRadius + (normalRingIndex * (normalRingHeight + ringPadding));
           outerRadius = innerRadius + normalRingHeight;
+        }
+      }
+
+      // Generate ticks for this ring based on its time unit
+      const ticks = [];
+      if (timeUnit === 'week' || timeUnit === 'day' || timeUnit === 'quarter') {
+        const start = new Date(disc.start);
+        const end = new Date(disc.end);
+        const current = new Date(start);
+
+        while (current <= end) {
+          // For weeks, we want the start of each week
+          // For days, every day
+          // For quarters, every 3 months
+          ticks.push({
+            date: new Date(current),
+            angle: dateToAngle(current.toISOString(), disc.start, disc.end)
+          });
+
+          if (timeUnit === 'week') {
+            current.setDate(current.getDate() + 7);
+          } else if (timeUnit === 'day') {
+            current.setDate(current.getDate() + 1);
+          } else if (timeUnit === 'quarter') {
+            current.setMonth(current.getMonth() + 3);
+          }
         }
       }
 
@@ -193,7 +220,8 @@ export const CircularDisc = ({
         ...ring,
         innerRadius,
         outerRadius,
-        activities
+        activities,
+        ticks
       }
     })
 
@@ -204,20 +232,57 @@ export const CircularDisc = ({
     const startMonth = startDate.getMonth();
 
     // Calculate the number of months between start and end dates
-    const monthDiff = (endDate.getFullYear() - startYear) * 12 + endDate.getMonth() - startMonth + 1;
-    const numMonths = Math.min(12, monthDiff); // Use at most 12 months
+    const totalDays = (endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24);
+    
+    let ticks: { date: Date; angle: number; label: string; isCurrent: boolean }[] = [];
+    const today = new Date();
 
-    // Create months starting from the disc's start month
-    const months = Array.from({ length: numMonths }, (_, i) => {
-      const month = (startMonth + i) % 12;
-      const yearOffset = Math.floor((startMonth + i) / 12);
-      return new Date(startYear + yearOffset, month, 1);
-    });
+    if (totalDays <= 32) {
+      // Monthly disc: show days
+      const current = new Date(startDate);
+      while (current <= endDate) {
+        ticks.push({
+          date: new Date(current),
+          angle: dateToAngle(current.toISOString(), disc.start, disc.end),
+          label: current.getDate().toString(),
+          isCurrent: current.getFullYear() === today.getFullYear() && 
+                    current.getMonth() === today.getMonth() && 
+                    current.getDate() === today.getDate()
+        });
+        current.setDate(current.getDate() + 1);
+      }
+    } else if (totalDays <= 100) {
+      // Quarterly disc: show weeks or semi-months
+      const current = new Date(startDate);
+      while (current <= endDate) {
+        ticks.push({
+          date: new Date(current),
+          angle: dateToAngle(current.toISOString(), disc.start, disc.end),
+          label: current.toLocaleDateString('default', { month: 'short', day: 'numeric' }),
+          isCurrent: current.getFullYear() === today.getFullYear() && 
+                    current.getMonth() === today.getMonth() && 
+                    (today.getTime() - current.getTime()) < (7 * 24 * 60 * 60 * 1000) &&
+                    (today.getTime() - current.getTime()) >= 0
+        });
+        current.setDate(current.getDate() + 7); // Weekly ticks
+      }
+    } else {
+      // Yearly disc: show months
+      const monthDiff = (endDate.getFullYear() - startYear) * 12 + endDate.getMonth() - startMonth + 1;
+      const numMonths = Math.min(12, monthDiff);
 
-    const timeTicks = months.map((month) => ({
-      date: month,
-      angle: dateToAngle(month.toISOString(), disc.start, disc.end),
-    }));
+      for (let i = 0; i < numMonths; i++) {
+        const monthDate = new Date(startYear, startMonth + i, 1);
+        ticks.push({
+          date: monthDate,
+          angle: dateToAngle(monthDate.toISOString(), disc.start, disc.end),
+          label: monthDate.toLocaleString('default', { month: 'short' }),
+          isCurrent: monthDate.getFullYear() === today.getFullYear() && monthDate.getMonth() === today.getMonth()
+        });
+      }
+    }
+
+    const timeTicks = ticks;
 
     return { centerRadius, maxRadius, ringData, timeTicks }
   }, [disc, selectedActivityId, filters])
@@ -253,41 +318,41 @@ export const CircularDisc = ({
           style={{ display: 'block', margin: '0 auto', background: 'none', position: 'relative', left: 0, top: 0 }}
         >
           <g transform="translate(400,400)">
-            {/* Outer time ring with month divisions */}
-            {timeTicks.map(({ date, angle }, index) => {
-              const today = new Date();
-              const isCurrentMonth = date.getFullYear() === today.getFullYear() && date.getMonth() === today.getMonth();
+            {/* Outer time ring with month/day divisions - label centered in arc */}
+            {timeTicks.map(({ angle, label, isCurrent }, index) => {
+              // Center the label in the middle of the arc segment
+              let nextAngle = angle;
+              if (index < timeTicks.length - 1) {
+                nextAngle = timeTicks[index + 1].angle;
+              } else if (timeTicks.length > 1) {
+                const avgDelta = (timeTicks[timeTicks.length - 1].angle - timeTicks[0].angle) / (timeTicks.length - 1);
+                nextAngle = angle + avgDelta;
+              }
+              const middleAngle = (angle + nextAngle) / 2;
+              // Keep lines inside the disc, remove outside tick marks
               return (
-              <g key={index}>
-                {/* Line from center to month */}
-                <line
-                  x1={0}
-                  y1={0}
-                  x2={polarToCartesian(angle, maxRadius).x}
-                  y2={polarToCartesian(angle, maxRadius).y}
-                  stroke={isCurrentMonth ? '#ef4444' : '#9ca3af'}
-                  strokeWidth={isCurrentMonth ? '2' : '1'}
-                  strokeDasharray="2,2"
-                  className={isCurrentMonth ? '' : 'dark:stroke-gray-500'}
-                />
-                {/* Month tick mark */}
-                <line
-                  x1={polarToCartesian(angle, maxRadius + 30 - 10).x}
-                  y1={polarToCartesian(angle, maxRadius + 30 - 10).y}
-                  x2={polarToCartesian(angle, maxRadius + 30).x}
-                  y2={polarToCartesian(angle, maxRadius + 30).y}
-                  stroke={isCurrentMonth ? '#ef4444' : '#9ca3af'}
-                  strokeWidth={isCurrentMonth ? '3' : '2'}
-                />
-                <text
-                  x={polarToCartesian(angle, maxRadius + 50).x}
-                  y={polarToCartesian(angle, maxRadius + 50).y}
-                  textAnchor="middle"
-                  className={isCurrentMonth ? 'text-xs font-bold fill-red-600' : 'text-xs font-medium fill-gray-600 dark:fill-gray-400'}
-                >
-                  {date.toLocaleString('default', { month: 'short' })}
-                </text>
-              </g>
+                <g key={index}>
+                  {/* Line from center to tick (inside disc only) */}
+                  <line
+                    x1={0}
+                    y1={0}
+                    x2={polarToCartesian(angle, maxRadius).x}
+                    y2={polarToCartesian(angle, maxRadius).y}
+                    stroke={isCurrent ? '#ef4444' : '#9ca3af'}
+                    strokeWidth={isCurrent ? '2' : '1'}
+                    strokeDasharray="2,2"
+                    className={isCurrent ? '' : 'dark:stroke-gray-500'}
+                  />
+                  {/* Centered label, closer to disc */}
+                  <text
+                    x={polarToCartesian(middleAngle, maxRadius + 20).x}
+                    y={polarToCartesian(middleAngle, maxRadius + 20).y}
+                    textAnchor="middle"
+                    className={isCurrent ? 'text-xs font-bold fill-red-600' : 'text-xs font-medium fill-gray-600 dark:fill-gray-400'}
+                  >
+                    {label}
+                  </text>
+                </g>
               );
             })}
 
@@ -341,6 +406,8 @@ export const CircularDisc = ({
                         fill={ring.color ? `${ring.color}20` : '#f8fafc'}
                         filter={`url(#shadow-${ring.id})`}
                         className="cursor-pointer hover:opacity-80 transition-opacity"
+                        stroke={ring.color || '#3b82f6'}
+                        strokeWidth={0.5}
                         onClick={e => {
                           if (e.target === e.currentTarget) {
                             openActivityDrawer(undefined);
@@ -354,8 +421,8 @@ export const CircularDisc = ({
                         r={ring.outerRadius}
                         fill="none"
                         stroke={ring.color || '#3b82f6'}
-                        strokeWidth={3}
-                        className="pointer-events-none"
+                        strokeWidth={2}
+                        className="pointer-events-none opacity-30"
                       />
                       {/* Inner border with different color */}
                       <circle
@@ -364,8 +431,8 @@ export const CircularDisc = ({
                         r={ring.innerRadius}
                         fill="none"
                         stroke={ring.color ? `${ring.color}60` : '#cbd5e1'}
-                        strokeWidth="2"
-                        className="pointer-events-none"
+                        strokeWidth={2}
+                        className="pointer-events-none opacity-30"
                       />
                     </>
                   ) : (
@@ -377,7 +444,7 @@ export const CircularDisc = ({
                       fill={ring.color ? `${ring.color}10` : '#f8fafc'}
                       stroke={ring.color || '#e2e8f0'}
                       strokeWidth={2}
-                      className="cursor-pointer hover:opacity-80 transition-opacity"
+                      className="cursor-pointer hover:opacity-80 transition-opacity opacity-50"
                       onClick={e => {
                         // Only open create if the click is not on an activity arc
                         // If the click is directly on the circle, open new activity
@@ -387,8 +454,22 @@ export const CircularDisc = ({
                       }}
                     />
                   )}
-                  {/* Curved ring name just below the ring, curve downward, text upright - only for normal rings */}
-                  {ring.type !== 'thin' && (
+                  {/* Sub-month divisions (weeks/days) */}
+                  {ring.ticks && ring.ticks.map((tick, i) => (
+                    <line
+                      key={`tick-${ring.id}-${i}`}
+                      x1={polarToCartesian(tick.angle, ring.innerRadius).x}
+                      y1={polarToCartesian(tick.angle, ring.innerRadius).y}
+                      x2={polarToCartesian(tick.angle, ring.outerRadius).x}
+                      y2={polarToCartesian(tick.angle, ring.outerRadius).y}
+                      stroke={ring.color || '#9ca3af'}
+                      strokeWidth="1"
+                      strokeOpacity="0.3"
+                      className="pointer-events-none"
+                    />
+                  ))}
+                  {/* Curved ring name just below the ring, curve downward, text upright - only for normal rings - REMOVED */}
+                  {false && ring.type !== 'thin' && (
                     <>
                       <path
                         id={`ring-label-arc-${ring.id}`}
@@ -580,25 +661,33 @@ export const CircularDisc = ({
             {/* Edit Disc Modal (with name editing) */}
             {isEditDiscOpen && (
               <foreignObject x={-150} y={-100} width={300} height={200}>
-                <div style={{ background: '#fff', borderRadius: 12, boxShadow: '0 2px 8px #0002', padding: 24, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                  <div style={{ fontWeight: 700, marginBottom: 12 }}>Edit Disc</div>
+                <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl p-6 flex flex-col items-center border border-gray-100 dark:border-gray-700">
+                  <div className="font-bold text-gray-900 dark:text-white mb-3">Edit Disc</div>
                   <input
                     type="text"
                     value={editDiscName}
                     onChange={e => setEditDiscName(e.target.value)}
-                    style={{ fontSize: 16, padding: 6, borderRadius: 6, border: '1px solid #ccc', marginBottom: 16, width: '100%' }}
+                    className="input mb-4"
                   />
-                  <button
-                    onClick={() => {
-                      if (editDiscName.trim()) {
-                        saveDisc({ ...disc, name: editDiscName.trim() });
-                        setIsEditDiscOpen(false);
-                      }
-                    }}
-                    style={{ marginTop: 8, padding: '6px 18px', borderRadius: 6, background: '#2563eb', color: '#fff', border: 'none', cursor: 'pointer' }}
-                  >
-                    Save
-                  </button>
+                  <div className="flex space-x-2">
+                    <button
+                      onClick={() => setIsEditDiscOpen(false)}
+                      className="px-4 py-2 text-sm bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={() => {
+                        if (editDiscName.trim()) {
+                          saveDisc({ ...disc, name: editDiscName.trim() });
+                          setIsEditDiscOpen(false);
+                        }
+                      }}
+                      className="px-4 py-2 text-sm bg-primary-600 text-white rounded-md hover:bg-primary-700"
+                    >
+                      Save
+                    </button>
+                  </div>
                 </div>
               </foreignObject>
             )}

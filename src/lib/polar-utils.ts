@@ -152,6 +152,13 @@ export const getTimeUnitTicks = (start: string, end: string, timeUnit: TimeUnit)
       ticks.push(current.toISOString())
       current.setMonth(current.getMonth() + 1)
     }
+  } else if (timeUnit === 'quarter') {
+    // Generate quarterly ticks
+    const current = new Date(startDate)
+    while (current <= endDate) {
+      ticks.push(current.toISOString())
+      current.setMonth(current.getMonth() + 3)
+    }
   } else {
     // Default to daily ticks
     const current = new Date(startDate)
@@ -171,6 +178,8 @@ export const getTimeUnitLabel = (date: string, timeUnit: TimeUnit): string => {
     return `W${Math.ceil(d.getDate() / 7)}`
   } else if (timeUnit === 'month') {
     return d.toLocaleDateString('en-US', { month: 'short' })
+  } else if (timeUnit === 'quarter') {
+    return `Q${Math.floor(d.getMonth() / 3) + 1}`
   } else {
     return d.getDate().toString()
   }

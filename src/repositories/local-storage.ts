@@ -87,9 +87,11 @@ export class LocalDiscRepository extends BaseDiscRepository {
         throw new Error('Invalid data format: expected array of discs')
       }
       
-      // Validate all discs before importing
+      // Validate and clean all discs before importing
       for (const disc of importedDiscs) {
         this.validateDisc(disc)
+        // Ensure imported discs go to root folder
+        disc.folderId = undefined
       }
       
       // Get existing discs and merge with imported ones

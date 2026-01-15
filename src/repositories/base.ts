@@ -5,6 +5,8 @@ export abstract class BaseDiscRepository implements DiscRepository {
   abstract getById(id: string): Promise<Disc | null>
   abstract save(disc: Disc): Promise<void>
   abstract delete(id: string): Promise<void>
+  abstract export(): Promise<string>
+  abstract import(jsonData: string): Promise<void>
 
   protected validateDisc(disc: Disc): void {
     if (!disc.id || !disc.name || !disc.start || !disc.end) {

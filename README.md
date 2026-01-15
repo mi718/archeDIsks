@@ -1,4 +1,4 @@
-# ArcheDisks - Circular Planner
+# OrbitalDisk - Circular Planner
 
 A responsive web app for creating, editing, and sharing circular "discs" representing planning timelines with multiple rings and activities.
 
@@ -38,7 +38,7 @@ A responsive web app for creating, editing, and sharing circular "discs" represe
 1. Clone the repository:
 ```bash
 git clone <repository-url>
-cd archedisks
+cd orbitaldisk
 ```
 
 2. Install dependencies:

@@ -3,7 +3,7 @@ import { Drawer } from '@/components/ui/Drawer'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { useUIStore } from '@/stores/ui-store'
-import { GripVertical } from 'lucide-react'
+import { GripVertical, Edit2 } from 'lucide-react'
 import type { Disc, Ring } from '@/types'
 
 interface FilterDrawerProps {
@@ -18,7 +18,8 @@ export const FilterDrawer = ({ isOpen, onClose, disc }: FilterDrawerProps) => {
     setFilters, 
     clearFilters, 
     closeFilterDrawer,
-    setRingOrder
+    setRingOrder,
+    openRingDrawer
   } = useUIStore()
 
   const [tempFilters, setTempFilters] = useState(filters)
@@ -206,11 +207,21 @@ export const FilterDrawer = ({ isOpen, onClose, disc }: FilterDrawerProps) => {
                         : [...tempFilters.ringIds, ring.id]
                       setTempFilters({ ...tempFilters, ringIds: newRingIds })
                     }}
-                    className="mr-2"
+                    className="mr-3 cursor-pointer"
                   />
                   <span className="text-sm text-gray-700 dark:text-gray-300 flex-1">
                     {ring.name}
                   </span>
+                  <button
+                    onClick={() => {
+                      closeFilterDrawer();
+                      openRingDrawer(ring.id);
+                    }}
+                    className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors"
+                    title="Edit Ring"
+                  >
+                    <Edit2 size={14} />
+                  </button>
                   {isThin && (
                     <span className="text-xs bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300 px-2 py-0.5 rounded">
                       Thin Ring
@@ -229,7 +240,7 @@ export const FilterDrawer = ({ isOpen, onClose, disc }: FilterDrawerProps) => {
           </label>
           <div className="space-y-2">
             {disc.labels.map(label => (
-              <label key={label.id} className="flex items-center">
+              <label key={label.id} className="flex items-center p-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700/50 transition-colors cursor-pointer">
                 <input
                   type="checkbox"
                   checked={tempFilters.labelIds.includes(label.id)}
@@ -239,9 +250,9 @@ export const FilterDrawer = ({ isOpen, onClose, disc }: FilterDrawerProps) => {
                       : [...tempFilters.labelIds, label.id]
                     setTempFilters({ ...tempFilters, labelIds: newLabelIds })
                   }}
-                  className="mr-2"
+                  className="mr-3 cursor-pointer"
                 />
-                <span className="text-sm text-gray-700 dark:text-gray-300">
+                <span className="text-sm text-gray-700 dark:text-gray-300 font-medium">
                   {label.name}
                 </span>
               </label>

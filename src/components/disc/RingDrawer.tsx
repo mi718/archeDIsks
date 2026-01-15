@@ -164,13 +164,22 @@ export const RingDrawer = ({ isOpen, onClose, disc, selectedRingId }: RingDrawer
     { value: 'week', label: 'Week' },
     { value: 'month', label: 'Month' },
     { value: 'quarter', label: 'Quarter' }
-  ]
+  ].filter(option => {
+    const days = (new Date(disc.end).getTime() - new Date(disc.start).getTime()) / (1000 * 60 * 60 * 24) + 1;
+    
+    if (days <= 32) { // Monthly
+      return option.value === 'day' || option.value === 'week';
+    } else if (days <= 100) { // Quarterly
+      return option.value === 'day' || option.value === 'week' || option.value === 'month';
+    }
+    return true; // Yearly
+  })
 
   return (
     <Drawer
       isOpen={isOpen}
       onClose={handleClose}
-      title="Add Ring"
+      title={editingRing ? 'Edit Ring' : 'Add Ring'}
       size="md"
     >
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">

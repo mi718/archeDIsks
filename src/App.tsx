@@ -5,17 +5,23 @@ import { Sidebar } from '@/components/layout/Sidebar'
 import { DiscListView } from '@/views/DiscListView'
 import { DiscView } from '@/views/DiscView'
 import { NotFoundView } from '@/views/NotFoundView'
+import LandingPage from '@/views/LandingPage'
 import LoginPage from '@/views/LoginPage'
+import PricingPage from '@/views/PricingPage'
+import { ProfilePage } from '@/views/ProfilePage'
+import { ToastContainer } from '@/components/ui/ToastContainer'
 import { useDiscStore } from '@/stores/disc-store'
-import { useUIStore } from '@/stores/ui-store'
+import { useAuthStore } from '@/stores/auth-store'
 
 function AppContent() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true)
   const { loadDiscs } = useDiscStore()
-  const { theme } = useUIStore()
+  const { isLoggedIn } = useAuthStore()
   const location = useLocation();
-  const isLoginPage = location.pathname === '/';
-  const isLoggedIn = localStorage.getItem('isLoggedIn') === 'true';
+  const isLandingPage = location.pathname === '/';
+  const isFullPage = isLandingPage || location.pathname === '/login' || location.pathname === '/pricing';
+
+  const navigate = useNavigate();
 
   useEffect(() => {
     // Load discs on app start
@@ -23,21 +29,15 @@ function AppContent() {
   }, [loadDiscs])
 
   useEffect(() => {
-    // Apply theme to document
-    document.documentElement.classList.toggle('dark', theme === 'dark')
-  }, [theme])
-
-  const navigate = useNavigate();
-
-  useEffect(() => {
-    if (!isLoggedIn) {
-      navigate('/');
+    if (!isLoggedIn && location.pathname !== '/' && location.pathname !== '/login' && location.pathname !== '/pricing') {
+      navigate('/login', { replace: true });
     }
-  }, [isLoggedIn, navigate]);
+  }, [isLoggedIn, navigate, location.pathname]);
 
   return (
-    <div className="flex h-screen bg-gray-50 dark:bg-gray-900 overflow-hidden">
-      {!isLoginPage && (
+    <div className={`flex h-screen overflow-hidden ${isLandingPage ? 'bg-white' : (isFullPage ? 'bg-gray-50 dark:bg-gray-900' : 'bg-gray-50 dark:bg-gray-900')}`}>
+      <ToastContainer />
+      {!isFullPage && (
         <Sidebar 
           isOpen={isSidebarOpen} 
           onClose={() => setIsSidebarOpen(false)} 
@@ -45,9 +45,9 @@ function AppContent() {
       )}
 
       <div
-        className={`flex-1 flex flex-col overflow-hidden transition-all duration-300 ${!isLoginPage && isSidebarOpen ? 'lg:ml-64' : ''}`}
+        className={`flex-1 flex flex-col overflow-hidden transition-all duration-300 ${!isLandingPage ? 'dark:bg-gray-900' : ''} ${!isFullPage && isSidebarOpen ? 'lg:ml-64' : ''}`}
       >
-        {!isLoginPage && (
+        {!isFullPage && (
           <AppBar 
             onMenuToggle={() => setIsSidebarOpen(!isSidebarOpen)}
             isMenuOpen={isSidebarOpen}
@@ -55,12 +55,15 @@ function AppContent() {
         )}
 
         {/* Page content */}
-        <main className="flex-1 overflow-y-scroll overflow-x-hidden">
+        <main className={`flex-1 overflow-y-auto overflow-x-hidden ${!isLandingPage ? 'dark:bg-gray-900' : ''}`}>
           <Routes>
-            <Route path="/" element={<LoginPage />} />
+            <Route path="/" element={<LandingPage />} />
+            <Route path="/login" element={<LoginPage />} />
+            <Route path="/pricing" element={<PricingPage />} />
             <Route path="/disc-list" element={<DiscListView />} />
             <Route path="/disc/new" element={<DiscView />} />
             <Route path="/disc/:id" element={<DiscView />} />
+            <Route path="/profile" element={<ProfilePage />} />
             <Route path="*" element={<NotFoundView />} />
           </Routes>
         </main>
@@ -71,7 +74,7 @@ function AppContent() {
 
 function App() {
   return (
-    <Router basename="/archeDIsks">
+    <Router basename="/orbitaldisk">
       <AppContent />
     </Router>
   )

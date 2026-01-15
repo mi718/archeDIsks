@@ -64,6 +64,11 @@ export interface Folder {
   name: string
   createdAt: string
   updatedAt: string
+  ownerId: string
+  sharedWith: string[]
+  shareCode?: string
+  shareExpiresAt?: string
+  invitedUserIds?: string[] // For future real multi-user support
 }
 
 export interface Disc {
@@ -80,6 +85,8 @@ export interface Disc {
   version: number
   createdAt: string
   updatedAt: string
+  ownerId?: string // UID of the creator
+  sharedWith?: string[] // Array of UIDs who have access
 }
 
 export interface FilterState {
@@ -97,6 +104,7 @@ export interface UIState {
   viewMode: ViewMode
   filters: FilterState
   selectedActivityId?: string
+  selectedRingId?: string
   isActivityDrawerOpen: boolean
   isRingDrawerOpen: boolean
   isLabelDrawerOpen: boolean
@@ -144,6 +152,7 @@ export interface RingRenderData extends Ring {
   innerRadius: number
   outerRadius: number
   activities: ActivityRenderData[]
+  ticks?: { date: Date; angle: number }[]
 }
 
 // Repository interfaces
@@ -152,6 +161,8 @@ export interface DiscRepository {
   getById(id: string): Promise<Disc | null>
   save(disc: Disc): Promise<void>
   delete(id: string): Promise<void>
+  export(): Promise<string>
+  import(jsonData: string): Promise<void>
 }
 
 // Form validation schemas

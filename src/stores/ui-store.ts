@@ -18,7 +18,7 @@ interface UIStore extends UIState {
   // Drawer actions
   openActivityDrawer: (activityId?: string) => void
   closeActivityDrawer: () => void
-  openRingDrawer: () => void
+  openRingDrawer: (ringId?: string) => void
   closeRingDrawer: () => void
   openLabelDrawer: () => void
   closeLabelDrawer: () => void
@@ -47,9 +47,10 @@ const defaultUIState: UIState = {
   selectedActivityId: undefined,
   isActivityDrawerOpen: false,
   isRingDrawerOpen: false,
+  selectedRingId: undefined,
   isLabelDrawerOpen: false,
   isFilterDrawerOpen: false,
-  theme: 'light'
+  theme: (localStorage.getItem('archedisks_theme') as 'light' | 'dark') || 'light'
 }
 
 export const useUIStore = create<UIStore>()(
@@ -134,12 +135,18 @@ export const useUIStore = create<UIStore>()(
       })
     },
 
-    openRingDrawer: () => {
-      set({ isRingDrawerOpen: true })
+    openRingDrawer: (ringId?: string) => {
+      set({ 
+        isRingDrawerOpen: true,
+        selectedRingId: ringId
+      })
     },
 
     closeRingDrawer: () => {
-      set({ isRingDrawerOpen: false })
+      set({ 
+        isRingDrawerOpen: false,
+        selectedRingId: undefined
+      })
     },
 
     openLabelDrawer: () => {

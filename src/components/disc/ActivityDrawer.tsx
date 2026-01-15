@@ -3,6 +3,8 @@ import { useForm, Controller } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Drawer } from '@/components/ui/Drawer'
 import { Button } from '@/components/ui/Button'
+import { Input } from '@/components/ui/Input'
+import { Select } from '@/components/ui/Select'
 import { useDiscStore } from '@/stores/disc-store'
 import { useUIStore } from '@/stores/ui-store'
 import type { Activity, Disc, ActivityFormData } from '@/types'
@@ -108,13 +110,34 @@ export const ActivityDrawer = ({ isOpen, onClose, activity, disc }: ActivityDraw
   const onSubmit = async (data: ActivityFormData) => {
     setIsSaving(true)
     try {
+      const isoStart = toISODateString(data.start);
+      const isoEnd = data.end ? toISODateString(data.end) : undefined;
+
+      // Validation: Check if dates are within disc range
+      const discStart = new Date(disc.start);
+      const discEnd = new Date(disc.end);
+      const activityStart = new Date(isoStart);
+      const activityEnd = isoEnd ? new Date(isoEnd) : activityStart;
+
+      if (activityStart < discStart || activityStart > discEnd) {
+        alert(`Start date must be between ${formatDateForInput(disc.start)} and ${formatDateForInput(disc.end)}`);
+        setIsSaving(false);
+        return;
+      }
+
+      if (isoEnd && (activityEnd < discStart || activityEnd > discEnd)) {
+        alert(`End date must be between ${formatDateForInput(disc.start)} and ${formatDateForInput(disc.end)}`);
+        setIsSaving(false);
+        return;
+      }
+
       const newActivity: Activity = {
         id: activity?.id || `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
         ringId: selectedRingId,
         title: data.title,
         description: data.description,
-        start: toISODateString(data.start),
-        end: data.end ? toISODateString(data.end) : undefined,
+        start: isoStart,
+        end: isoEnd,
         color: data.color,
         labelIds: data.labelIds,
         attachments: activity?.attachments || [],
@@ -208,28 +231,13 @@ export const ActivityDrawer = ({ isOpen, onClose, activity, disc }: ActivityDraw
       size="md"
     >
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-        <div className="space-y-2">
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-            Title
-            <span className="text-red-500">*</span>
-          </label>
-          <input
-            type="text"
-            {...register('title')}
-            className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:border-transparent dark:bg-gray-700 dark:text-gray-100 dark:focus:ring-primary-400 transition-all ${
-              errors.title
-                ? 'border-red-500 dark:border-red-400 focus:ring-red-500'
-                : 'border-gray-300 focus:ring-primary-500 dark:border-gray-600'
-            }`}
-            placeholder="Enter activity title"
-          />
-          {errors.title && (
-            <p className="text-sm text-red-600 dark:text-red-400 flex items-center">
-              <span className="mr-1">⚠</span>
-              {errors.title.message}
-            </p>
-          )}
-        </div>
+        <Input
+          label="Title"
+          required
+          {...register('title')}
+          placeholder="Enter activity title"
+          error={errors.title?.message}
+        />
 
         <div className="space-y-2">
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
@@ -237,8 +245,7 @@ export const ActivityDrawer = ({ isOpen, onClose, activity, disc }: ActivityDraw
           </label>
           <textarea
             {...register('description')}
-            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 dark:focus:ring-primary-400 transition-all resize-none"
-            rows={3}
+            className="input h-24 resize-none"
             placeholder="Enter activity description"
           />
           {errors.description && (
@@ -248,61 +255,27 @@ export const ActivityDrawer = ({ isOpen, onClose, activity, disc }: ActivityDraw
           )}
         </div>
 
-        <div className="space-y-3">
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                Start Date
-                <span className="text-gray-500 text-xs ml-1">(DD-MM-YYYY)</span>
-              </label>
-              <input
-                type="text"
-                placeholder="DD-MM-YYYY"
-                {...register('start', {
-                  onChange: (e) => {
-                    e.target.value = handleDateInput(e.target.value);
-                  }
-                })}
-                className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:border-transparent dark:bg-gray-700 dark:text-gray-100 dark:focus:ring-primary-400 transition-all ${
-                  errors.start
-                    ? 'border-red-500 dark:border-red-400 focus:ring-red-500'
-                    : 'border-gray-300 focus:ring-primary-500 dark:border-gray-600'
-                }`}
-              />
-              {errors.start && (
-                <p className="text-sm text-red-600 dark:text-red-400 flex items-center">
-                  <span className="mr-1">⚠</span>
-                  {errors.start.message}
-                </p>
-              )}
-            </div>
-            <div className="space-y-2">
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                End Date
-                <span className="text-gray-500 text-xs ml-1">(optional)</span>
-              </label>
-              <input
-                type="text"
-                placeholder="DD-MM-YYYY"
-                {...register('end', {
-                  onChange: (e) => {
-                    e.target.value = handleDateInput(e.target.value);
-                  }
-                })}
-                className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:border-transparent dark:bg-gray-700 dark:text-gray-100 dark:focus:ring-primary-400 transition-all ${
-                  errors.end
-                    ? 'border-red-500 dark:border-red-400 focus:ring-red-500'
-                    : 'border-gray-300 focus:ring-primary-500 dark:border-gray-600'
-                }`}
-              />
-              {errors.end && (
-                <p className="text-sm text-red-600 dark:text-red-400 flex items-center">
-                  <span className="mr-1">⚠</span>
-                  {errors.end.message}
-                </p>
-              )}
-            </div>
-          </div>
+        <div className="grid grid-cols-2 gap-4">
+          <Input
+            label="Start Date (DD-MM-YYYY)"
+            placeholder="DD-MM-YYYY"
+            {...register('start', {
+              onChange: (e) => {
+                e.target.value = handleDateInput(e.target.value);
+              }
+            })}
+            error={errors.start?.message}
+          />
+          <Input
+            label="End Date (optional)"
+            placeholder="DD-MM-YYYY"
+            {...register('end', {
+              onChange: (e) => {
+                e.target.value = handleDateInput(e.target.value);
+              }
+            })}
+            error={errors.end?.message}
+          />
         </div>
 
         <div className="space-y-4 bg-gray-50 dark:bg-gray-700/30 rounded-lg p-4">
@@ -330,22 +303,13 @@ export const ActivityDrawer = ({ isOpen, onClose, activity, disc }: ActivityDraw
               )
             }}
           />
-          <div className="space-y-2">
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-              Ring
-            </label>
-            <select
-              value={selectedRingId}
-              onChange={(e) => setSelectedRingId(e.target.value)}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 dark:focus:ring-primary-400 transition-all bg-white dark:bg-gray-700"
-            >
-              {ringOptions.map(option => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-          </div>
+
+          <Select
+            label="Ring"
+            options={ringOptions}
+            value={selectedRingId}
+            onChange={(e) => setSelectedRingId(e.target.value)}
+          />
         </div>
 
         <div className="space-y-3 bg-gray-50 dark:bg-gray-700/30 rounded-lg p-4">
@@ -354,14 +318,14 @@ export const ActivityDrawer = ({ isOpen, onClose, activity, disc }: ActivityDraw
           </label>
           <div className="space-y-2">
             {labelOptions.map(label => (
-              <label key={label.value} className="flex items-center p-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-600/50 transition-colors cursor-pointer">
+              <label key={label.value} className="flex items-center p-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700/50 transition-colors cursor-pointer">
                 <input
                   type="checkbox"
                   value={label.value}
                   {...register('labelIds')}
-                  className="w-4 h-4 text-primary-600 rounded border-gray-300 focus:ring-2 focus:ring-primary-500 dark:border-gray-600 dark:bg-gray-700"
+                  className="mr-3 cursor-pointer"
                 />
-                <span className="ml-3 text-sm font-medium text-gray-700 dark:text-gray-300">
+                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
                   {label.label}
                 </span>
               </label>
